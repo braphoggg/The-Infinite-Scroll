@@ -1,0 +1,75 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+model Source {
+  id             String     @id @default(uuid())
+  type           String     // "rss" | "web" | "youtube"
+  name           String
+  url            String     @unique
+  config         String     @default("{}")
+  enabled        Boolean    @default(true)
+  pollIntervalMs Int        @default(300000)
+  lastPolledAt   DateTime?
+  createdAt      DateTime   @default(now())
+  items          LoreItem[]
+}
+
+model LoreItem {
+  id              String    @id @default(uuid())
+  sourceId        String
+  source          Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId      String?
+  url             String
+  title           String
+  rawContent      String
+  summary         String?
+  status          String    @default("pending") // pending | processing | classified | failed
+  biasLabel       String?
+  biasReasoning   String?
+  importance      Int       @default(0)
+  publishedAt     DateTime?
+  ingestedAt      DateTime  @default(now())
+  processedAt     DateTime?
+  postedToDiscord Boolean   @default(false)
+  tags            LoreTag[]
+
+  @@unique([sourceId, externalId])
+  @@index([status])
+  @@index([ingestedAt])
+}
+
+model Topic {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  color       String    @default("#f0b132")
+  channelId   String?
+  createdAt   DateTime  @default(now())
+  tags        LoreTag[]
+}
+
+model LoreTag {
+  id         String   @id @default(uuid())
+  itemId     String
+  item       LoreItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  topicId    String
+  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  confidence Float    @default(1.0)
+
+  @@unique([itemId, topicId])
+}
+
+model GuildConfig {
+  guildId         String @id
+  feedChannelId   String?
+  adminRoleId     String?
+  maxPostsPerHour Int    @default(20)
+  minImportance   Int    @default(3)
+}
