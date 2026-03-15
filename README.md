@@ -1,66 +1,48 @@
 # The Infinite Scroll
 
-AI-powered lore aggregation system for Discord communities. Three autonomous components work together: **Eyes** pull content from RSS feeds & web sources, **Seekers** classify, tag, and detect bias using AI, and **Scrolls** present curated intelligence through Discord channels and a real-time dark-themed web dashboard.
-
-Stop doomscrolling — start lore-scrolling.
+Rather than passively consuming random news and social media, this system lets your Discord group coordinate and organize the topics you follow in one place. Content — or "lore" — is pulled from configurable sources, classified and tagged by AI, then presented through both a web dashboard and Discord channels, like a living, AI-curated group newspaper.
 
 ## Architecture
 
+The system runs as a single Next.js process with three core components communicating through a shared SQLite database and an in-process event bus:
+
 ```
-┌─────────────────────────────────────────────────┐
-│                 Next.js App                      │
-│                                                  │
-│   Web Dashboard          API Routes              │
-│   ┌────────────┐    ┌──────────────────┐         │
-│   │ Feed       │    │ /api/sources     │         │
-│   │ Sources    │    │ /api/lore        │         │
-│   │ Topics     │    │ /api/topics      │         │
-│   │ Settings   │    │ /api/status      │         │
-│   └────────────┘    └────────┬─────────┘         │
-│                              │                    │
-│        ┌─────────────────────┼────────────┐      │
-│        │           Core Engine             │      │
-│        │                                   │      │
-│        │  👁 Eyes  →  🪼 Seekers  →  📜 Scrolls │
-│        │                                   │      │
-│        │        EventBus + SQLite          │      │
-│        └───────────────────────────────────┘      │
-└──────────────────────────────────────────────────┘
+Eyes (ingest) ──→ EventBus ──→ Seekers (classify) ──→ EventBus ──→ Scrolls (present)
+                                    ↕                                    ↕
+                                 SQLite                            Discord API
+                                                                   Web Dashboard
 ```
 
-### Eyes (Content Ingestion)
-- Subscribes to RSS feeds, YouTube channels, and web sources
-- Polls on configurable intervals with automatic deduplication
-- Extensible source adapter pattern — add new source types easily
-
-### Seekers (Content Processing)
-- Classifies content into topics with confidence scores
-- Detects bias (left, center, right, academic, conspiratorial, etc.)
-- Generates summaries and assigns importance scores (0-10)
-- Ships with a keyword-based mock classifier; swap in Claude API for production
-
-### Scrolls (Content Presentation)
-- Real-time web dashboard with dark theme
-- Discord bot posts classified lore to topic-specific channels
-- Filterable feed by topic, importance, bias, and source
+**Eyes** poll RSS feeds on configurable intervals, deduplicate content, and store raw items. **Seekers** pick up new items, classify them into topics with confidence scores, detect bias, generate summaries, and assign importance ratings (0–10). **Scrolls** present the processed lore through the web dashboard and Discord channels.
 
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/your-username/the-infinite-scroll.git
-cd the-infinite-scroll
+git clone https://github.com/braphoggg/The-Infinite-Scroll.git
+cd The-Infinite-Scroll
 npm install
-
-# Set up the database
 cp .env.example .env.local
 npx prisma db push
-
-# Start the dev server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the dashboard.
+
+## Discord Bot Setup
+
+1. Create an application at [discord.com/developers](https://discord.com/developers/applications)
+2. Click **New Application**, name it "The Infinite Scroll"
+3. Go to **Bot** tab, click **Add Bot**, copy the token
+4. Enable **Message Content Intent** under Privileged Gateway Intents
+5. Go to **OAuth2 > URL Generator**, select `bot` + `applications.commands`
+6. Select permissions: Send Messages, Embed Links, Manage Channels, Read Messages
+7. Copy the generated URL and open it to invite the bot to your server
+8. Add to `.env.local`:
+   ```
+   DISCORD_TOKEN=your_token
+   DISCORD_CLIENT_ID=your_client_id
+   DISCORD_GUILD_ID=your_guild_id
+   ```
 
 ## Adding Your First Source
 
@@ -69,7 +51,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the dashboard.
 3. Click **Add Source**
 4. Watch items appear on the **Feed** page within seconds
 
-## Dashboard Pages
+## Dashboard
 
 | Page | Description |
 |------|-------------|
@@ -77,19 +59,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the dashboard.
 | **Sources** | Add, remove, and toggle RSS feeds with live polling status |
 | **Topics** | View and manage classification topics with color coding and item counts |
 | **Settings** | Engine start/stop/restart, system stats, Discord bot setup guide |
-
-## Discord Bot Setup (Optional)
-
-1. Create an application at [discord.com/developers](https://discord.com/developers/applications)
-2. Add a bot and copy the token
-3. Enable **Message Content Intent** under Privileged Gateway Intents
-4. Generate an invite URL with `bot` + `applications.commands` scopes
-5. Add to `.env.local`:
-   ```
-   DISCORD_TOKEN=your_token
-   DISCORD_CLIENT_ID=your_client_id
-   DISCORD_GUILD_ID=your_guild_id
-   ```
 
 ## Tech Stack
 
@@ -125,16 +94,6 @@ src/
     ├── seekers/            # Content classification
     └── scrolls/            # Discord presentation
 ```
-
-## Roadmap
-
-- [ ] Swap mock classifier for Claude API
-- [ ] YouTube channel source (via RSS)
-- [ ] Web scraper source (Cheerio)
-- [ ] Topic suggestion engine
-- [ ] Importance-based filtering per guild
-- [ ] Real-time WebSocket updates on dashboard
-- [ ] Discord slash commands (`/feed`, `/search`, `/topics`)
 
 ## License
 
